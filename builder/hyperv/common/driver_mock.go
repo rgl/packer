@@ -594,6 +594,10 @@ func (d *DriverMock) SetFirstBootDevice(vmName string, controllerType string, co
 	return d.SetFirstBootDevice_Err
 }
 
+func (d *DriverMock) SetBootOrder(vmName string, bootOrder []string) error {
+	return nil
+}
+
 func (d *DriverMock) UnmountDvdDrive(vmName string, controllerNumber uint, controllerLocation uint) error {
 	d.UnmountDvdDrive_Called = true
 	d.UnmountDvdDrive_VmName = vmName
