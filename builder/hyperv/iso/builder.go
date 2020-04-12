@@ -238,6 +238,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			FixedVHD:                       b.config.FixedVHD,
 			Version:                        b.config.Version,
 			KeepRegistered:                 b.config.KeepRegistered,
+			Notes:                          b.config.Notes,
 		},
 		&hypervcommon.StepEnableIntegrationService{},
 

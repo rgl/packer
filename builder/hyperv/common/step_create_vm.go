@@ -17,6 +17,7 @@ import (
 //   VMName string - The name of the VM
 type StepCreateVM struct {
 	VMName                         string
+	Notes                          string
 	SwitchName                     string
 	HarddrivePath                  string
 	RamSize                        uint
@@ -78,6 +79,14 @@ func (s *StepCreateVM) Run(ctx context.Context, state multistep.StateBag) multis
 		s.SwitchName, s.Generation, s.DifferencingDisk, s.FixedVHD, s.Version)
 	if err != nil {
 		err := fmt.Errorf("Error creating virtual machine: %s", err)
+		state.Put("error", err)
+		ui.Error(err.Error())
+		return multistep.ActionHalt
+	}
+
+	err = driver.SetVirtualMachineNotes(s.VMName, s.Notes)
+	if err != nil {
+		err := fmt.Errorf("Error setting virtual machine notes: %s", err)
 		state.Put("error", err)
 		ui.Error(err.Error())
 		return multistep.ActionHalt

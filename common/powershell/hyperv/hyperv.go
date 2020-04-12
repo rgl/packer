@@ -3,6 +3,7 @@ package hyperv
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -674,6 +675,22 @@ Hyper-V\Set-VMMemory -VMName $vmName -DynamicMemoryEnabled $enableDynamicMemory
 	}
 	var ps powershell.PowerShellCmd
 	err := ps.Run(script, vmName, enableDynamicMemoryString)
+	return err
+}
+
+func SetVirtualMachineNotes(vmName string, notes string) error {
+	// NB we have to base64 encode the notes argument because PowerShellCmd
+	//    does not properly escape the command line arguments when you use
+	//    a "notes" template field alike:
+	// 		"---\ncreated_at: {{isotime}}\ntemplate_dir: {{template_dir}}\nbuild_name: {{build_name}}\npacker: {{packer_version}}\n"
+	var script = fmt.Sprintf(`
+param([string]$vmName)
+$notes = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("%s"))
+Hyper-V\Set-VM $vmName -Notes $notes
+`, base64.StdEncoding.EncodeToString([]byte(notes)))
+
+	var ps powershell.PowerShellCmd
+	err := ps.Run(script, vmName)
 	return err
 }
 

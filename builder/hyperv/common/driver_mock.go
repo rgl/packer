@@ -499,6 +499,10 @@ func (d *DriverMock) SetVirtualMachineDynamicMemory(vmName string, enable bool) 
 	return d.SetVirtualMachineDynamicMemory_Err
 }
 
+func (d *DriverMock) SetVirtualMachineNotes(vmName string, notes string) error {
+	return nil
+}
+
 func (d *DriverMock) SetVirtualMachineSecureBoot(vmName string, enable bool, templateName string) error {
 	d.SetVirtualMachineSecureBoot_Called = true
 	d.SetVirtualMachineSecureBoot_VmName = vmName

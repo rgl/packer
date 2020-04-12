@@ -69,6 +69,8 @@ type CommonConfig struct {
 	// without the file extension. By default this is "packer-BUILDNAME",
 	// where "BUILDNAME" is the name of the build.
 	VMName string `mapstructure:"vm_name" required:"false"`
+	// This is the notes about the new virtual machine.
+	Notes string `mapstructure:"notes" required:"false"`
 	// The name of the switch to connect the virtual
 	// machine to. By default, leaving this value unset will cause Packer to
 	// try and determine the switch to use by looking for an external switch
