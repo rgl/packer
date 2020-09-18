@@ -8,7 +8,6 @@ executors:
   golang:
     docker:
       - image: circleci/golang:1.13
-    resource_class: medium+
   darwin:
     macos:
       xcode: "9.0"
@@ -24,7 +23,7 @@ commands:
       - checkout
       - run: curl https://dl.google.com/go/go<< parameters.GOVERSION >>.<< parameters.GOOS >>-amd64.tar.gz | tar -C ~/ -xz
       - run: ~/go/bin/go test ./... -coverprofile=coverage.txt  -covermode=atomic
-  install-go-run-tests-windows:
+  install-go-windows:
     parameters:
       GOVERSION:
         type: string
@@ -32,7 +31,81 @@ commands:
       - checkout
       - run: curl https://dl.google.com/go/go<< parameters.GOVERSION >>.windows-amd64.zip --output ~/go<< parameters.GOVERSION >>.windows-amd64.zip
       - run: unzip ~/go<< parameters.GOVERSION >>.windows-amd64.zip -d ~/
+  install-go-run-tests-windows:
+    parameters:
+      GOVERSION:
+        type: string
+    steps:
+      - install-go-windows:
+          GOVERSION: << parameters.GOVERSION >>
       - run: ~/go/bin/go test ./... -coverprofile=coverage.txt  -covermode=atomic
+  install-go-run-tests-windows-msys2:
+    parameters:
+      GOVERSION:
+        type: string
+    steps:
+      - install-go-windows:
+          GOVERSION: << parameters.GOVERSION >>
+      - run:
+          name: install msys2
+          shell: powershell.exe
+          command: |
+            # install msys2.
+            choco install --no-progress -y msys2
+            # configure the msys2 launcher to let the shell inherith the PATH.
+            $msys2BasePath = 'C:\tools\msys64'
+            $msys2ConfigPath = "$msys2BasePath\msys2.ini"
+            [IO.File]::WriteAllText(
+                $msys2ConfigPath,
+                ([IO.File]::ReadAllText($msys2ConfigPath) `
+                    -replace '#?(MSYS2_PATH_TYPE=).+','$1inherit')
+            )
+            # define a function for easying the execution of bash scripts.
+            $bashPath = "$msys2BasePath\usr\bin\bash.exe"
+            function Bash($script) {
+                $eap = $ErrorActionPreference
+                $ErrorActionPreference = 'Continue'
+                try {
+                    # we also redirect the stderr to stdout because PowerShell
+                    # oddly interleaves them.
+                    # see https://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
+                    echo 'exec 2>&1;set -eu;export PATH="/usr/bin:$PATH";export HOME=$USERPROFILE;' $script | &$bashPath
+                    if ($LASTEXITCODE) {
+                        throw "bash execution failed with exit code $LASTEXITCODE"
+                    }
+                } finally {
+                    $ErrorActionPreference = $eap
+                }
+            }
+            
+            # install dependencies.
+            Bash 'pacman --noconfirm -Sy xorriso'
+      - run:
+          name: run unit tests
+          shell: powershell.exe
+          command: |
+            # define a function for easying the execution of bash scripts.
+            $bashPath = "C:\tools\msys64\usr\bin\bash.exe"
+            function Bash($script) {
+                $eap = $ErrorActionPreference
+                $ErrorActionPreference = 'Continue'
+                try {
+                    # we also redirect the stderr to stdout because PowerShell
+                    # oddly interleaves them.
+                    # see https://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
+                    echo 'exec 2>&1;set -eu;export PATH="/usr/bin:$PATH";export HOME=$USERPROFILE;' $script | &$bashPath
+                    if ($LASTEXITCODE) {
+                        throw "bash execution failed with exit code $LASTEXITCODE"
+                    }
+                } finally {
+                    $ErrorActionPreference = $eap
+                }
+            }
+            
+            Bash @'
+            set -euxo pipefail
+            ~/go/bin/go test ./... -coverprofile=coverage.txt -covermode=atomic
+            '@
   build-and-persist-packer-binary:
     parameters:
       GOOS:
@@ -76,6 +149,15 @@ jobs:
       shell: bash.exe
     steps:
       - install-go-run-tests-windows:
+          GOVERSION: "1.13"
+      - codecov/upload:
+          file: coverage.txt
+  test-windows-msys2:
+    executor:
+      name: win/vs2019
+      shell: bash.exe
+    steps:
+      - install-go-run-tests-windows-msys2:
           GOVERSION: "1.13"
       - codecov/upload:
           file: coverage.txt
@@ -192,40 +274,4 @@ workflows:
   version: 2
   test:
     jobs:
-      - test-linux
-      - test-darwin
-      - test-windows
-  check-code:
-    jobs:
-      - check-lint
-      - check-vendor-vs-mod
-      - check-fmt
-      - check-generate
-  build_packer_binaries:
-    jobs:
-      - build_linux
-      - build_darwin
-      - build_windows
-      - build_freebsd
-      - build_openbsd
-      - build_solaris
-      - store_artifacts:
-          requires:
-            - build_linux
-            - build_darwin
-            - build_windows
-            - build_freebsd
-            - build_openbsd
-            - build_solaris
-  website:
-    jobs:
-      - build-website-docker-image:
-          filters:
-            branches:
-              only:
-                - master
-      - algolia-index:
-          filters:
-            branches:
-              only:
-                - stable-website
+      - test-windows-msys2

@@ -5,12 +5,45 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/packer/helper/multistep"
 	"github.com/hashicorp/packer/packer"
 )
+
+func TestStepCreateCD_retrieveCDISOCreationCommand_msys2(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("test only applies to windows")
+	}
+	_, err := exec.LookPath("cygpath")
+	if err != nil {
+		t.Skip("test only applies to windows msys2")
+	}
+	c, err := retrieveCDISOCreationCommand(
+		"test",
+		"C:\\Windows\\Temp\\test-cd",
+		"C:\\Windows\\Temp\\test-cd.iso")
+	if !strings.HasSuffix(c.Path, "\\usr\\bin\\xorriso.exe") {
+		t.Fatalf("expected a msys2 xorriso.exe command path but got %s", c.Path)
+	}
+	if len(c.Args) < 2 {
+		t.Fatalf("expected a xorriso.exe command args length >= 2 but got %v", c.Args)
+	}
+	expectedSourcePath := "/c/Windows/Temp/test-cd"
+	sourcePath := c.Args[len(c.Args)-1]
+	if expectedSourcePath != sourcePath {
+		t.Fatalf("expected the source path to be %s but got %s", expectedSourcePath, sourcePath)
+	}
+	expectedDestinationPath := "/c/Windows/Temp/test-cd.iso"
+	destinationPath := c.Args[len(c.Args)-2]
+	if expectedDestinationPath != destinationPath {
+		t.Fatalf("expected the destination path to be %s but got %s", expectedDestinationPath, destinationPath)
+	}
+}
 
 func TestStepCreateCD_Impl(t *testing.T) {
 	var raw interface{}
